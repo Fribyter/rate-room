@@ -1,0 +1,76 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.vite/
+coverage/
+
+# Runtime data and logs
+*.log
+*.out
+*.err
+*.pid
+*.pid.lock
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Cache and temp files
+.cache/
+.temp/
+.tmp/
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*.orig
+*.rej
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.iml
+
+# Local archives and database artifacts
+*.zip
+*.tgz
+*.gz
+*.7z
+*.sqlite
+*.sqlite3
+
+AGENTS.md
+AIDER.md
+CLAUDE.md
+COPILOT.md
+CURSOR.md
+GEMINI.md
+OPENAI.md
+WINDSURF.md
+.aider*
+.claude/
+.claude.json
+.codex/
+.continue/
+.cursor/
+.gemini/
+.github/copilot-instructions.md
+.openai/
+.roo/
+.windsurf/
+
+# Local server/process leftovers
+nohup.out
