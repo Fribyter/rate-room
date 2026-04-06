@@ -35,8 +35,30 @@ export function fetchSharedState() {
   return request('/api/state')
 }
 
-export function createPizza(payload) {
-  return request('/api/pizzas', {
+export function fetchAccessInfo() {
+  return request('/api/access')
+}
+
+export function fetchPresence() {
+  return request('/api/presence')
+}
+
+export function sendPresenceHeartbeat(payload) {
+  return request('/api/presence/heartbeat', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateEvent(payload) {
+  return request('/api/event', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function createItem(payload) {
+  return request('/api/items', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -70,8 +92,8 @@ export function clearAllData(requestedBy) {
   })
 }
 
-export function deletePizza(pizzaId, requestedBy) {
-  return request(`/api/pizzas/${pizzaId}?requestedBy=${encodeURIComponent(requestedBy)}`, {
+export function deleteItem(itemId, requestedBy) {
+  return request(`/api/items/${itemId}?requestedBy=${encodeURIComponent(requestedBy)}`, {
     method: 'DELETE',
   })
 }

@@ -1,5 +1,6 @@
 const USER_KEY = 'rateroom_user'
 const LEGACY_USER_KEY = 'pizza_app_user'
+const SESSION_KEY = 'rateroom_client_session'
 
 function readJson(key, fallback) {
   try {
@@ -17,6 +18,11 @@ function writeJson(key, value) {
 export const storageKeys = {
   user: USER_KEY,
   legacyUser: LEGACY_USER_KEY,
+  session: SESSION_KEY,
+}
+
+function createSessionId() {
+  return `session_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 }
 
 export function getStoredUser() {
@@ -41,4 +47,15 @@ export function getStoredUser() {
 
 export function setStoredUser(user) {
   writeJson(USER_KEY, user)
+}
+
+export function getClientSessionId() {
+  const storedSessionId = readJson(SESSION_KEY, '')
+  if (typeof storedSessionId === 'string' && storedSessionId.trim()) {
+    return storedSessionId
+  }
+
+  const nextSessionId = createSessionId()
+  writeJson(SESSION_KEY, nextSessionId)
+  return nextSessionId
 }
