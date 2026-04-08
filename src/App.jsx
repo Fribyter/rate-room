@@ -15,7 +15,6 @@ import {
 } from './api'
 import { getClientSessionId, getStoredUser, setStoredUser, storageKeys } from './storage'
 
-const MAX_IMAGE_SIZE = 2 * 1024 * 1024
 const HEARTBEAT_INTERVAL_MS = 5000
 const POLL_INTERVAL_MS = 4000
 const RECONNECTED_NOTICE_MS = 3000
@@ -186,6 +185,15 @@ function fileToBase64(file) {
   })
 }
 
+function getItemNameFromFile(file, fallbackLabel, index) {
+  const fileName =
+    typeof file?.name === 'string'
+      ? file.name.replace(/\.[^.]+$/, '').trim()
+      : ''
+
+  return fileName || `${fallbackLabel} ${index + 1}`
+}
+
 function computeSummary(items, ratings) {
   const summary = items.map((item) => {
     let totalScore = 0
@@ -288,7 +296,7 @@ function App() {
   const [joinToasts, setJoinToasts] = useState([])
   const [qrCodeImage, setQrCodeImage] = useState('')
   const [itemName, setItemName] = useState('')
-  const [selectedFile, setSelectedFile] = useState(null)
+  const [selectedFiles, setSelectedFiles] = useState([])
   const [copiedUrl, setCopiedUrl] = useState('')
   const [uploading, setUploading] = useState(false)
   const [savingEvent, setSavingEvent] = useState(false)
@@ -486,6 +494,9 @@ function App() {
       } catch {
         // Ignore malformed join notifications.
       }
+    })
+    eventSource.addEventListener('state-changed', () => {
+      void refreshSharedState({ silent: true })
     })
 
     return () => {
@@ -707,17 +718,12 @@ function App() {
   async function handleUpload(event) {
     event.preventDefault()
 
-    if (!selectedFile || !user) {
-      setError(`Please choose an image for the ${itemLabels.singular.toLowerCase()}.`)
+    if (!selectedFiles.length || !user) {
+      setError(`Please choose at least one image for the ${itemLabels.plural.toLowerCase()}.`)
       return
     }
 
-    if (selectedFile.size > MAX_IMAGE_SIZE) {
-      setError('Image size must be 2MB or smaller.')
-      return
-    }
-
-    if (!selectedFile.type.startsWith('image/')) {
+    if (selectedFiles.some((file) => !file.type.startsWith('image/'))) {
       setError('Only image files are supported.')
       return
     }
@@ -726,16 +732,27 @@ function App() {
     setError('')
 
     try {
-      const image = await fileToBase64(selectedFile)
-      const nextState = await createItem({
-        name: itemName.trim(),
-        image,
-        uploadedBy: user.name,
-      })
+      let nextState = null
 
-      applyState(nextState)
+      for (const [index, file] of selectedFiles.entries()) {
+        const image = await fileToBase64(file)
+        const nextName =
+          selectedFiles.length === 1 && itemName.trim()
+            ? itemName.trim()
+            : getItemNameFromFile(file, itemLabels.singular, index)
+
+        nextState = await createItem({
+          name: nextName,
+          image,
+          uploadedBy: user.name,
+        })
+      }
+
+      if (nextState) {
+        applyState(nextState)
+      }
       setItemName('')
-      setSelectedFile(null)
+      setSelectedFiles([])
       event.target.reset()
     } catch (uploadError) {
       setError(uploadError.message)
@@ -845,7 +862,7 @@ function App() {
       applyState(nextState)
       setDraftScores({})
       setItemName('')
-      setSelectedFile(null)
+      setSelectedFiles([])
       setError('')
     } catch (clearError) {
       setError(clearError.message)
@@ -1219,17 +1236,31 @@ function App() {
               <input
                 value={itemName}
                 onChange={(event) => setItemName(event.target.value)}
-                placeholder={`${itemLabels.singular} name, for example ${activityOption.itemExample}`}
+                placeholder={
+                  selectedFiles.length > 1
+                    ? `Optional for single upload only. Multi-upload uses each file name.`
+                    : `${itemLabels.singular} name, for example ${activityOption.itemExample}`
+                }
               />
               <input
                 type="file"
+                multiple
                 accept="image/png,image/jpeg,image/jpg,image/webp"
-                onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+                onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []))}
               />
-              <button type="submit" disabled={uploading || !selectedFile}>
-                {uploading ? 'Uploading...' : `Add ${itemLabels.singular}`}
+              <button type="submit" disabled={uploading || selectedFiles.length === 0}>
+                {uploading
+                  ? 'Uploading...'
+                  : selectedFiles.length > 1
+                    ? `Add ${selectedFiles.length} ${itemLabels.plural}`
+                    : `Add ${itemLabels.singular}`}
               </button>
             </form>
+            {selectedFiles.length > 1 && (
+              <p className="muted">
+                Multi-upload mode is active. Each selected image will become its own {itemLabels.singular.toLowerCase()}.
+              </p>
+            )}
           </div>
 
           <div className="admin-actions">

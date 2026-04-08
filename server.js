@@ -16,6 +16,7 @@ const DEFAULT_ACTIVITY_TYPE = 'food'
 const DEFAULT_RESULTS_VISIBILITY = 'live'
 const PRESENCE_TTL_MS = 15000
 const PRESENCE_SWEEP_INTERVAL_MS = 5000
+const REQUEST_BODY_LIMIT = '100mb'
 const EVENT_TEMPLATES = {
   food: {
     title: 'Neighborhood Tasting Board',
@@ -42,7 +43,7 @@ const onlineUsers = new Map()
 const sseClients = new Set()
 let storeWriteChain = Promise.resolve()
 
-app.use(express.json({ limit: '10mb' }))
+app.use(express.json({ limit: REQUEST_BODY_LIMIT }))
 
 function normalizeUser(user) {
   return {
@@ -75,6 +76,12 @@ function broadcastPresenceSnapshot() {
   broadcast('presence', {
     onlineUsers: listOnlineUsers(),
     count: onlineUsers.size,
+    sentAt: Date.now(),
+  })
+}
+
+function broadcastStateChanged() {
+  broadcast('state-changed', {
     sentAt: Date.now(),
   })
 }
@@ -290,6 +297,8 @@ async function writeStore(nextState) {
 
     await fs.writeFile(tempPath, serializedState)
     await fs.rename(tempPath, STORE_PATH)
+    broadcastStateChanged()
+    return normalizedState
   }
 
   const pendingWrite = storeWriteChain.then(runWrite, runWrite)
@@ -480,8 +489,8 @@ app.post('/api/event', asyncHandler(async (req, res) => {
     items: normalizeItems(state.items, nextEvent),
   }
 
-  await writeStore(nextState)
-  res.json(nextState)
+  const savedState = await writeStore(nextState)
+  res.json(savedState)
 }))
 
 async function createItemHandler(req, res) {
@@ -511,8 +520,8 @@ async function createItemHandler(req, res) {
     items: [nextItem, ...state.items],
   }
 
-  await writeStore(nextState)
-  res.status(201).json(nextState)
+  const savedState = await writeStore(nextState)
+  res.status(201).json(savedState)
 }
 
 async function deleteItemHandler(req, res) {
@@ -536,8 +545,8 @@ async function deleteItemHandler(req, res) {
     ratings: removeItemScores(state.ratings, itemId),
   }
 
-  await writeStore(nextState)
-  res.json(nextState)
+  const savedState = await writeStore(nextState)
+  res.json(savedState)
 }
 
 app.post('/api/items', asyncHandler(createItemHandler))
@@ -602,8 +611,8 @@ app.post('/api/ratings', asyncHandler(async (req, res) => {
     ratings: nextRatings,
   }
 
-  await writeStore(nextState)
-  res.status(201).json(nextState)
+  const savedState = await writeStore(nextState)
+  res.status(201).json(savedState)
 }))
 
 app.delete('/api/ratings', asyncHandler(async (req, res) => {
@@ -628,8 +637,8 @@ app.delete('/api/ratings', asyncHandler(async (req, res) => {
     ratings: nextRatings,
   }
 
-  await writeStore(nextState)
-  res.json(nextState)
+  const savedState = await writeStore(nextState)
+  res.json(savedState)
 }))
 
 app.delete('/api/ratings/all', asyncHandler(async (req, res) => {
@@ -645,8 +654,8 @@ app.delete('/api/ratings/all', asyncHandler(async (req, res) => {
     ratings: [],
   }
 
-  await writeStore(nextState)
-  res.json(nextState)
+  const savedState = await writeStore(nextState)
+  res.json(savedState)
 }))
 
 app.delete('/api/state/all', asyncHandler(async (req, res) => {
@@ -663,8 +672,8 @@ app.delete('/api/state/all', asyncHandler(async (req, res) => {
     ratings: [],
   }
 
-  await writeStore(nextState)
-  res.json(nextState)
+  const savedState = await writeStore(nextState)
+  res.json(savedState)
 }))
 
 app.get('/api/health', asyncHandler(async (_req, res) => {
